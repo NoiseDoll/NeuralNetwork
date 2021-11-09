@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using NeuralNetwork;
 
-namespace NerualTest
+namespace NeuralTest
 {
     class Program
     {
