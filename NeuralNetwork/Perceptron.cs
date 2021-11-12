@@ -58,7 +58,7 @@ namespace NeuralNetwork
 
             foreach (var layer in perceptron.Layers)
             {
-                layer.Outputs = new float[layer.Neurons.Length];
+                layer.Output = new float[layer.Neurons.Length];
             }
 
             var layersCount = perceptron.Layers.Count;
@@ -82,22 +82,22 @@ namespace NeuralNetwork
             await JsonSerializer.SerializeAsync(stream, this, options, cancellationToken);
         }
 
-        public float[] Run(float[] inputs)
+        public float[] Run(float[] input)
         {
-            var current = inputs;
+            var current = input;
             for (int i = 0; i < Layers.Count; i++)
             {
                 var layer = Layers[i];
                 ComputeOutputSimulate(current, layer);
-                current = layer.Outputs;
+                current = layer.Output;
             }
 
             return current.ToArray();
         }
 
         public float Sample(
-            float[] inputs,
-            float[] outputs,
+            float[] input,
+            float[] output,
             float learningRate = 0.1f,
             float momentum = 0f,
             float errorTolerance = 0f,
@@ -106,17 +106,17 @@ namespace NeuralNetwork
             var error = 0f;
             for (int iteration = 0; iteration < maxIterations; iteration++)
             {
-                PropagateForward(inputs);
+                PropagateForward(input);
 
-                error = GetError(outputs);
+                error = GetError(output);
                 if (error < errorTolerance)
                 {
                     return error;
                 }
 
-                PropagateBackward(outputs);
+                PropagateBackward(output);
 
-                var current = inputs;
+                var current = input;
                 for (int i = 0; i < Layers.Count; i++)
                 {
                     var layer = Layers[i];
@@ -144,7 +144,7 @@ namespace NeuralNetwork
                         }
                     }
 
-                    current = layer.Outputs;
+                    current = layer.Output;
                 }
             }
 
@@ -159,22 +159,22 @@ namespace NeuralNetwork
                 var layer = Layers[i];
                 var trainer = Trainers[i];
                 ComputeOutputTrain(current, layer, trainer);
-                current = layer.Outputs;
+                current = layer.Output;
             }
         }
 
-        private void PropagateBackward(float[] outputs)
+        private void PropagateBackward(float[] output)
         {
             {
                 var last = Layers.Count - 1;
-                var results = Layers[last].Outputs;
+                var results = Layers[last].Output;
                 var lastTrainer = Trainers[last];
                 var derivatives = lastTrainer.Derivatives;
                 var gradients = lastTrainer.Gradients;
 
-                for (int i = 0; i < outputs.Length; i++)
+                for (int i = 0; i < output.Length; i++)
                 {
-                    gradients[i] = (outputs[i] - results[i]) * derivatives[i];
+                    gradients[i] = (output[i] - results[i]) * derivatives[i];
                 }
             }
 
@@ -201,48 +201,48 @@ namespace NeuralNetwork
             }
         }
 
-        private float GetError(float[] references)
+        private float GetError(float[] reference)
         {
             var error = 0f;
-            var outputs = Layers[Layers.Count - 1].Outputs;
-            for (int i = 0; i < references.Length; i++)
+            var output = Layers[Layers.Count - 1].Output;
+            for (int i = 0; i < reference.Length; i++)
             {
-                var delta = references[i] - outputs[i];
+                var delta = reference[i] - output[i];
                 error += MathF.Sqrt(delta * delta);
             }
 
-            return error / references.Length;
+            return error / reference.Length;
         }
 
-        private static void ComputeOutputSimulate(float[] inputs, Layer layer)
+        private static void ComputeOutputSimulate(float[] input, Layer layer)
         {
             for (int i = 0; i < layer.Neurons.Length; i++)
             {
                 var neuron = layer.Neurons[i];
-                var sum = NetSum(inputs, neuron);
+                var sum = NetSum(input, neuron);
                 var output = Sigmoid(sum);
-                layer.Outputs[i] = output;
+                layer.Output[i] = output;
             }
         }
 
-        private static void ComputeOutputTrain(float[] inputs, Layer layer, TrainedLayer trainer)
+        private static void ComputeOutputTrain(float[] input, Layer layer, TrainedLayer trainer)
         {
             for (int i = 0; i < layer.Neurons.Length; i++)
             {
                 var neuron = layer.Neurons[i];
-                var sum = NetSum(inputs, neuron);
+                var sum = NetSum(input, neuron);
                 var output = Sigmoid(sum);
-                layer.Outputs[i] = output;
+                layer.Output[i] = output;
                 trainer.Derivatives[i] = DerivativeSigmoid(output);
             }
         }
 
-        private static float NetSum(float[] inputs, Neuron neuron)
+        private static float NetSum(float[] input, Neuron neuron)
         {
             var sum = neuron.Bias;
             for (int i = 0; i < neuron.Weights.Length; i++)
             {
-                sum += inputs[i] * neuron.Weights[i];
+                sum += input[i] * neuron.Weights[i];
             }
 
             return sum;
@@ -265,7 +265,7 @@ namespace NeuralNetwork
         public Neuron[] Neurons { get; set; }
 
         [JsonIgnore]
-        public float[] Outputs { get; set; }
+        public float[] Output { get; set; }
 
         public static Layer CreateRandom(int inputCount, int neuronCount, Random rng)
         {
@@ -273,7 +273,7 @@ namespace NeuralNetwork
             var layer = new Layer
             {
                 Neurons = neurons,
-                Outputs = new float[neuronCount],
+                Output = new float[neuronCount],
             };
 
             for (int i = 0; i < neuronCount; i++)
