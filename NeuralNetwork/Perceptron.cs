@@ -151,6 +151,77 @@ namespace NeuralNetwork
             return error;
         }
 
+        public float Batch(
+            IEnumerable<float[]> inputs, IEnumerable<float[]> outputs, float errorTolerance, int maxIterations, Action<int, float> iterationCallback)
+        {
+            var weightCount = GetWeightCount();
+            var oldGradients = new float[weightCount];
+            var newGradients = new float[weightCount];
+            var magnitude = Enumerable.Repeat(0.1f, weightCount).ToArray();
+
+            var error = 0f;
+            for (int iteration = 0; iteration < maxIterations; iteration++)
+            {
+                error = 0f;
+                var k = 0;
+                var count = 0;
+                foreach (var (input, output) in inputs.Zip(outputs))
+                {
+                    PropagateForward(input);
+                    error += GetError(output);
+                    PropagateBackward(output);
+
+                    var current = input;
+                    k = 0;
+                    count++;
+
+                    for (int i = 0; i < Layers.Count; i++)
+                    {
+                        var trainer = Trainers[i];
+                        foreach (var gradient in trainer.Gradients)
+                        {
+                            newGradients[k++] += gradient;
+                            foreach (var signal in current)
+                            {
+                                newGradients[k++] += gradient * signal;
+                            }
+                        }
+
+                        var layer = Layers[i];
+                        current = layer.Output;
+                    }
+                }
+
+                error /= count;
+                if (error < errorTolerance)
+                {
+                    return error;
+                }
+
+                iterationCallback?.Invoke(iteration, error);
+
+                k = 0;
+                foreach (var layer in Layers)
+                {
+                    foreach (var neuron in layer.Neurons)
+                    {
+                        neuron.Bias = UpdateWeight(
+                            ref newGradients[k], ref oldGradients[k], ref magnitude[k], neuron.Bias);
+                        k++;
+
+                        for (int i = 0; i < neuron.Weights.Length; i++, k++)
+                        {
+                            var weight = neuron.Weights[i];
+                            neuron.Weights[i] = UpdateWeight(
+                                ref newGradients[k], ref oldGradients[k], ref magnitude[k], weight);
+                        }
+                    }
+                }
+            }
+
+            return error;
+        }
+
         private void PropagateForward(float[] inputs)
         {
             var current = inputs;
@@ -214,6 +285,17 @@ namespace NeuralNetwork
             return error / reference.Length;
         }
 
+        private int GetWeightCount()
+        {
+            var count = 0;
+            foreach (var layer in Layers)
+            {
+                count += layer.Output.Length * (layer.Neurons[0].Weights.Length + 1);
+            }
+
+            return count;
+        }
+
         private static void ComputeOutputSimulate(float[] input, Layer layer)
         {
             for (int i = 0; i < layer.Neurons.Length; i++)
@@ -246,6 +328,38 @@ namespace NeuralNetwork
             }
 
             return sum;
+        }
+
+        private static float UpdateWeight(
+            ref float newGradient, ref float oldGradient, ref float magnitude, float weight)
+        {
+            const float MaxMagnitude = 50f;
+            const float MinMagnitude = 1e-6f;
+            const float nMinus = 0.5f;
+            const float nPlus = 1.2f;
+
+            var mult = oldGradient * newGradient;
+            if (mult > 0f)
+            {
+                magnitude = MathF.Min(magnitude * nPlus, MaxMagnitude);
+                var delta = MathF.Sign(newGradient) * magnitude;
+                weight += delta;
+                oldGradient = newGradient;
+            }
+            else if (mult < 0f)
+            {
+                magnitude = MathF.Max(magnitude * nMinus, MinMagnitude);
+                oldGradient = 0f;
+            }
+            else
+            {
+                var delta = MathF.Sign(newGradient) * magnitude;
+                weight += delta;
+                oldGradient = newGradient;
+            }
+
+            newGradient = 0f;
+            return weight;
         }
 
         private static float Sigmoid(float x)

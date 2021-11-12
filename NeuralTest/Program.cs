@@ -69,8 +69,13 @@ namespace NeuralTest
             var testData = Split(data, rng);
 
             Test(perceptron, testData, dividers);
-            Train(perceptron, data);
+            TrainBatch(perceptron, data);
             Test(perceptron, testData, dividers);
+
+            static void TrainBatch(Perceptron perceptron, List<float[]> data)
+            {
+                perceptron.Batch(data.Select(d => d[..^1]), data.Select(d => new[] { d[^1] }), 0.1f, 10000, Log);
+            }
 
             static void Train(Perceptron perceptron, List<float[]> data)
             {
@@ -122,6 +127,8 @@ namespace NeuralTest
 
                 Console.ForegroundColor = initialColor;
             }
+
+            static void Log(int i, float e) => Console.WriteLine($"Iteration: {i}. Error: {e}");
         }
 
         private static async Task<List<float[]>> LoadIrisDataAsync(string path)
