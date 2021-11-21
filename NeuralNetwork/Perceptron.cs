@@ -82,6 +82,16 @@ namespace NeuralNetwork
             await JsonSerializer.SerializeAsync(stream, this, options, cancellationToken);
         }
 
+        public async Task<string> ToStringAsync(CancellationToken cancellationToken = default)
+        {
+            using var stream = new MemoryStream();
+            var options = new JsonSerializerOptions { WriteIndented = true, };
+            await JsonSerializer.SerializeAsync(stream, this, options, cancellationToken);
+            stream.Position = 0;
+            using var reader = new StreamReader(stream);
+            return await reader.ReadToEndAsync();
+        }
+
         public float[] Run(float[] input)
         {
             var current = input;
