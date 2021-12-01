@@ -17,13 +17,31 @@ namespace NeuralUI.Framework
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        protected void SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
         {
             if (!EqualityComparer<T>.Default.Equals(field, value))
             {
                 field = value;
                 NotifyPropertyChanged(propertyName);
+                return true;
             }
+
+            return false;
         }
+        
+        protected bool SetProperty<T>(ref T field, T value, Action onChanged, [CallerMemberName] string propertyName = null)
+        {
+            if (!EqualityComparer<T>.Default.Equals(field, value))
+            {
+                field = value;
+                onChanged?.Invoke();
+                NotifyPropertyChanged(propertyName);
+                return true;
+            }
+
+            return false;
+        }
+
+
     }
 }
